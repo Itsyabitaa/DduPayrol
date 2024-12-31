@@ -1,0 +1,30 @@
+# # Disable directory browsing
+# Options -Indexes
+# IndexIgnore *
+
+# # Set the default directory index to index.php
+# DirectoryIndex public/index.php
+
+# <IfModule mod_rewrite.c>
+#     RewriteEngine On
+
+#     # Base directory for rewrite rules (adjust if needed)
+#     # RewriteBase /oop_pay/
+
+#     # Redirect all requests to public/index.php
+#     RewriteCond %{REQUEST_FILENAME} !-f
+#     RewriteCond %{REQUEST_FILENAME} !-d
+#     RewriteRule ^(.*)$ public/index.php [L]
+
+#     # Uncomment and adjust if you want to handle 500 errors
+#     # ErrorDocument 500 /path/to/custom_error_page.html
+# </IfModule>
+
+
+# Enable mod_rewrite
+RewriteEngine On
+
+# Redirect all requests to index.php unless the file or directory exists
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [L,QSA]
