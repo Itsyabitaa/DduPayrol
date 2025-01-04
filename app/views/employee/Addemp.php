@@ -201,35 +201,32 @@ if (!isset($_SESSION['username']) || !isset($_SESSION['role_id']) || (6 !== ($_S
                             <input type="text" id="username" name="username" required>
                         </div>
 
-                        <!-- Password -->
                         <div class="form-group">
                             <label for="password">Password</label>
-                            <input type="password" id="password" name="password" required>
+                            <input type="password" id="password" name="password" required oninput="validatePassword(this)">
+                            <span id="passwordError" style="color: red; font-size: 12px; display: none;">Password must be longer than 8 characters, contain at least one letter, and not have sequential numbers.</span>
                         </div>
 
-                        <!-- Level (Role ID) -->
+                        <!-- Salary Assignment -->
                         <div class="form-group">
                             <label for="Level">Level</label>
-                            <select id="Level" name="Level" required onchange="updateRoleId()">
+                            <select id="Level" name="Level" required onchange="updateRoleId(); updateSalary();">
                                 <option value="">Select Level</option>
                                 <option value="1">High</option>
                                 <option value="2">Medium</option>
-                                <option value="3">low</option>
-                                <!-- Other roles can be added as needed -->
+                                <option value="3">Low</option>
                             </select>
                         </div>
 
-                        <!-- Salary -->
-                        <div class="form-group">
-                            <label for="salary">Salary</label>
-                            <input type="number" id="salary" name="Salary" required>
-                        </div>
 
+                        <input type="hidden" id="salary" name="salary" value="">
                         <!-- Phone Number -->
                         <div class="form-group">
                             <label for="phoneNumber">Phone Number</label>
-                            <input type="text" id="phoneNumber" name="phoneNumber" required>
+                            <input type="text" id="phoneNumber" name="phoneNumber" required oninput="validatePhoneNumber(this)">
+                            <span id="phoneNumberError" style="color: red; font-size: 12px; display: none;">Invalid phone number.</span>
                         </div>
+
 
                         <!-- Gender -->
                         <div class="form-group">
@@ -277,19 +274,40 @@ if (!isset($_SESSION['username']) || !isset($_SESSION['role_id']) || (6 !== ($_S
                 </div>
 
                 <script>
-                    // JavaScript function to set role_id based on the selected level
                     function updateRoleId() {
-                        var level = document.getElementById('Level').value;
-                        var roleIdField = document.getElementById('role_id');
-                        // Set role_id based on selected level
-                        if (level == "1") {
-                            roleIdField.value = 3; // Employee role
-                        } else if (level == "2") {
-                            roleIdField.value = 3; // Director role
-                        } else {
-                            roleIdField.value = 3; // Empty if no level selected
-                        }
+                        const level = document.getElementById('Level').value;
+                        const roleIdField = document.getElementById('role_id');
+                        roleIdField.value = level === "1" ? 3 : level === "2" ? 3 : 3; // Adjust logic as needed
                     }
+
+                    function updateSalary() {
+                        const level = document.getElementById("Level").value;
+                        const salary = level === "1" ? 15000 : level === "2" ? 12600 : level === "3" ? 10750 : 0;
+                        document.getElementById("salary").value = salary;
+                    }
+
+                    function validatePhoneNumber(input) {
+                        const phoneNumber = input.value;
+                        const phoneNumberError = document.getElementById("phoneNumberError");
+                        const isValid = /^\d{10}$/.test(phoneNumber); // Adjust regex for your specific validation rules
+                        phoneNumberError.style.display = isValid ? "none" : "block";
+                    }
+
+                    // function validatePassword(input) {
+                    //     const password = input.value;
+                    //     const passwordError = document.getElementById("passwordError");
+
+                    //     const isLongEnough = password.length > 8;
+                    //     const hasCharacter = /[a-zA-Z]/.test(password);
+                    //     const noSequentialNumbers = !/(012|123|234|345|456|567|678|789)/.test(password);
+
+                    //     if (isLongEnough && hasCharacter && noSequentialNumbers) {
+                    //         passwordError.style.display = "none";
+                    //     } else {
+                    //         passwordError.style.display = "block";
+                    //     }
+                    // }
+                </script>
                 </script>
 </body>
 

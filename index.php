@@ -1,6 +1,5 @@
 <?php
 include './app/autoloader2.php';
-
 // Define routes for view and dashboard
 $viewRoutes = [
     '/' => [
@@ -31,6 +30,27 @@ $dashboardRoutes = [
         'method' => 'directorDashboard',
         'role_check' => 4,
     ],
+    '/attendance/store' => [
+        'controller' => 'EmployeeController',
+        'method' => 'store',
+        'role_check' => 5,  // You can adjust this based on user roles if needed
+    ],
+    '/attendance/employees' => [
+        'controller' => 'EmployeeController',
+        'method' => 'listEmployeesBySchool',
+        'role_check' => 5,  // You can adjust this based on user roles if needed
+    ],
+    '/attendance/edit' => [
+        'controller' => 'EmployeeController',
+        'method' => 'editAttendance',
+        'role_check' => '5', // School Dean role
+    ],
+    '/attendance/view' => [
+        'controller' => 'EmployeeController',
+        'method' => 'viewAttendance',
+        'role_check' => '5', // School Dean role
+    ],
+
     '/Emp/dashboard' => [
         'controller' => 'DashboardController',
         'method' => 'employeeDashboard',
@@ -91,11 +111,6 @@ $dashboardRoutes = [
         'method' => 'postEditUser',
         'role_check' => null,
     ],
-    '/edit_role_position' => [
-        'controller' => 'EmployeeController',
-        'method' => 'editRoleAndPosition',
-        'role_check' => 4,
-    ],
 
 ];
 
@@ -122,7 +137,7 @@ function executeRoute($route, $isDashboard = false)
         }
     }
 
-    if (class_exists($controllerName)) {
+    if (true) {
         $controller = new $controllerName();
 
         // Check if the method exists in the controller
@@ -180,5 +195,5 @@ if (isset($viewRoutes[$request])) {
 
 // If no route matches, handle as 404
 http_response_code(404);
-echo "404 - Not Found yab";
+//echo "404 - Not Found ";
 exit;

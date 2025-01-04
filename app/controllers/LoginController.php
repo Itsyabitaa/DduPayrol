@@ -77,6 +77,7 @@ class LoginController
                     $_SESSION['role_id'] = $user['role_id'];
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['phoneNumber'] = $user['phonenumber'];
+                    $_SESSION['sch_id'] = $user['sch_id'];  // Assuming $user contains user data after authentication
 
                     // Redirect user to their dashboard or intended destination
                     $this->redirectToDashboard();

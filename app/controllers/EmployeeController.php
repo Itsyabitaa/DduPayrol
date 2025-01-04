@@ -71,7 +71,7 @@ class EmployeeController
             $lastName = $_POST['LastName'];
             $username = $_POST['username'];
             $password = $_POST['password'];
-            $salary = $_POST['Salary'];
+            $salary = $_POST['salary'];
             $phoneNumber = $_POST['phoneNumber'];
             $gender = $_POST['gender'];
             $dob = $_POST['dob'];
@@ -84,7 +84,7 @@ class EmployeeController
 
             // Insert into the database
             $db = Database::getConnection();
-            $sql = "INSERT INTO users (first_name, last_name, username, password, salary, gender, position_id, account_status, dob, place_of_birth, role_id, phonenumber)
+            $sql = "INSERT INTO users (first_name, last_name, username, password, Salary, gender, position_id, account_status, dob, place_of_birth, role_id, phonenumber)
         VALUES (:first_name, :last_name, :username, :password, :salary, :gender, :position_id, 'active', :dob, :place_of_birth, :role_id, :phonenumber)";
 
             $stmt = $db->prepare($sql);
@@ -140,6 +140,193 @@ class EmployeeController
             }
         } catch (PDOException $e) {
             echo "Database Error: " . $e->getMessage();
+        }
+    }
+    public function listEmployeesBySchool()
+    {
+        // Ensure the user is logged in and their school ID is available in the session
+        if (!isset($_SESSION['sch_id'])) {
+            echo "Access denied. School ID is not set.";
+            return;
+        }
+
+        $school_id = $_SESSION['sch_id']; // Use the school ID from the session
+
+        try {
+            $connection = Database::getConnection();
+
+            // Fetch employees of the specific school
+            $sql = "SELECT id, first_name FROM users WHERE sch_id = :school_id";
+            $stmt = $connection->prepare($sql);
+            $stmt->execute([':school_id' => $school_id]);
+
+            $employees = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (empty($employees)) {
+                echo "No employees found for your school.";
+                return;
+            }
+
+            // Pass data to the view
+            require_once __DIR__ . '/../views/attendance/list-employees.php';
+        } catch (\PDOException $e) {
+            echo "Error: " . $e->getMessage();
+        }
+    }
+
+
+
+
+    public function store()
+    {
+        // Ensure data is present
+        if (!isset($_POST['user_id'], $_POST['days_worked'], $_POST['month'], $_POST['year'])) {
+            echo "Invalid input.";
+            return;
+        }
+
+        $user_id = $_POST['user_id'];
+        $days_worked = $_POST['days_worked'];
+        $month = $_POST['month'];
+        $year = $_POST['year'];
+
+        $current_month = date('m');
+        $current_year = date('Y');
+
+        // Validate month and year
+        if ($year < $current_year || ($year == $current_year && $month < $current_month)) {
+            echo "Cannot add attendance for past months.";
+            return;
+        }
+
+        if ($year > $current_year || ($year == $current_year && $month > $current_month)) {
+            echo "Cannot add attendance for future months.";
+            return;
+        }
+
+        try {
+            $connection = Database::getConnection();
+
+            // Check if attendance already exists
+            $sql = "SELECT id FROM attendance WHERE user_id = :user_id AND month = :month AND year = :year";
+            $stmt = $connection->prepare($sql);
+            $stmt->execute([
+                ':user_id' => $user_id,
+                ':month' => $month,
+                ':year' => $year,
+            ]);
+
+            if ($stmt->rowCount() > 0) {
+                echo "Attendance already exists.";
+                return;
+            }
+
+            // Insert attendance
+            $sql = "INSERT INTO attendance (user_id, days_worked, month, year) VALUES (:user_id, :days_worked, :month, :year)";
+            $stmt = $connection->prepare($sql);
+            $stmt->execute([
+                ':user_id' => $user_id,
+                ':days_worked' => $days_worked,
+                ':month' => $month,
+                ':year' => $year,
+            ]);
+
+            echo "Attendance added successfully.";
+        } catch (\PDOException $e) {
+            echo "Error: " . $e->getMessage();
+        }
+    }
+
+    public function editAttendance()
+    {
+        if (!isset($_GET['attendance_id'])) {
+            echo "Attendance ID is required.";
+            return;
+        }
+
+        $attendance_id = $_GET['attendance_id'];
+
+        try {
+            $connection = Database::getConnection();
+
+            // Check if the request is a POST (update action)
+            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                // Get current month and year
+                $currentMonth = date('m');
+                $currentYear = date('Y');
+
+                // Validate the provided month and year
+                if ($_POST['month'] != $currentMonth || $_POST['year'] != $currentYear) {
+                    echo "You can only edit attendance for the current month.";
+                    return;
+                }
+
+                // Update attendance record
+                $sql = "UPDATE attendance 
+                    SET days_worked = :days_worked 
+                    WHERE id = :id AND month = :month AND year = :year";
+                $stmt = $connection->prepare($sql);
+                $stmt->execute([
+                    ':days_worked' => $_POST['days_worked'],
+                    ':month' => $currentMonth,
+                    ':year' => $currentYear,
+                    ':id' => $attendance_id,
+                ]);
+
+                echo "Attendance updated successfully.";
+                return;
+            }
+
+            // Fetch the current attendance data for editing
+            $sql = "SELECT * FROM attendance WHERE id = :id";
+            $stmt = $connection->prepare($sql);
+            $stmt->execute([':id' => $attendance_id]);
+            $attendance = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$attendance) {
+                echo "Attendance record not found.";
+                return;
+            }
+
+            // Pass attendance data to the view
+            require_once __DIR__ . '/../views/attendance/edit-attendance.php';
+        } catch (\PDOException $e) {
+            echo "Error: " . $e->getMessage();
+        }
+    }
+
+    public function viewAttendance()
+    {
+        if (!isset($_SESSION['sch_id'])) {
+            echo "Access denied. School ID is not set.";
+            return;
+        }
+
+        $school_id = $_SESSION['sch_id'];
+
+        try {
+            $connection = Database::getConnection();
+
+            // Fetch attendance records for the logged-in school dean's school
+            $sql = "SELECT a.id, first_name AS employee_name, a.days_worked, a.month, a.year
+                FROM attendance a
+                INNER JOIN users u ON a.user_id = u.id
+                WHERE u.sch_id = :school_id
+                ORDER BY a.year DESC, a.month DESC";
+            $stmt = $connection->prepare($sql);
+            $stmt->execute([':school_id' => $school_id]);
+
+            $attendances = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (empty($attendances)) {
+                echo "No attendance records found for your school.";
+                return;
+            }
+
+            // Pass attendance data to the view
+            require_once __DIR__ . '/../views/attendance/view-attendance.php';
+        } catch (\PDOException $e) {
+            echo "Error: " . $e->getMessage();
         }
     }
 
@@ -228,6 +415,131 @@ class EmployeeController
             } else {
                 echo "Error updating user details.";
             }
+        }
+    }
+
+
+    public function loadAttendance()
+    {
+
+
+        include 'app/views/attendance/attendance.php';
+    }
+
+    public function editpayroll()
+    {
+
+        include 'app/views/PA/EDITPAY.php';
+    }
+    public function loadAttendanceAdd()
+    {
+        include 'app/views/attendance/attendanceAdd.php';
+    }
+
+    private $db;
+
+    public function __construct()
+    {
+        $this->db = Database::getConnection();
+    }
+
+    // Display payroll data for a specific employee
+    public function viewPayroll($userId, $month, $year)
+    {
+        // Query to get payroll information for the specific employee and month/year
+        $query = "SELECT * FROM payslips WHERE user_id = :user_id AND MONTH(created_at) = :month AND YEAR(created_at) = :year";
+
+        try {
+            $stmt = $this->db->prepare($query);
+            $stmt->execute(['user_id' => $userId, 'month' => $month, 'year' => $year]);
+
+            $payroll = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($payroll) {
+                return $payroll;
+            } else {
+                return "No payroll data found for the given period.";
+            }
+        } catch (PDOException $e) {
+            return "Error: " . $e->getMessage();
+        }
+    }
+
+
+    // Add a new attendance record for an employee (Only school head can do this)
+    public function addAttendance($userId, $month, $year, $daysWorked)
+    {
+        // Get the school head's role (role check is done here)
+        $role = $this->getUserRole($userId);
+
+        if ($role !== 'School Head') {
+            return "Only School Head can fill attendance records.";
+        }
+
+        // Check if payroll for this user, month, and year already exists
+        $existingPayroll = $this->viewPayroll($userId, $month, $year);
+
+        if (is_array($existingPayroll)) {
+            return "Payroll already exists for this employee for the given month and year.";
+        }
+
+        // Calculate salary deduction based on days worked
+        $employeeSalary = $this->getEmployeeSalary($userId);
+        $totalWorkingDays = 30; // For example, a month has 30 days
+        $deduction = ($totalWorkingDays - $daysWorked) * ($employeeSalary / $totalWorkingDays);
+
+        // Insert attendance and calculate net pay
+        $netPay = $employeeSalary - $deduction;
+
+        $query = "INSERT INTO payslips (user_id, salary, deduction, net_pay, created_at)
+                  VALUES (:user_id, :salary, :deduction, :net_pay, NOW())";
+
+        try {
+            $stmt = $this->db->prepare($query);
+            $stmt->execute([
+                'user_id' => $userId,
+                'salary' => $employeeSalary,
+                'deduction' => $deduction,
+                'net_pay' => $netPay
+            ]);
+
+            return "Attendance record and payroll updated successfully.";
+        } catch (PDOException $e) {
+            return "Error: " . $e->getMessage();
+        }
+    }
+
+    // Helper method to get employee role
+    private function getUserRole($userId)
+    {
+        $query = "SELECT role FROM users WHERE id = :user_id";
+
+        try {
+            $stmt = $this->db->prepare($query);
+            $stmt->execute(['user_id' => $userId]);
+
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            return $user ? $user['role'] : null;
+        } catch (PDOException $e) {
+            return "Error: " . $e->getMessage();
+        }
+    }
+
+    // Helper method to get the employee salary
+    private function getEmployeeSalary($userId)
+    {
+        $query = "SELECT salary FROM employees WHERE user_id = :user_id";
+
+        try {
+            $stmt = $this->db->prepare($query);
+            $stmt->execute(['user_id' => $userId]);
+
+            $employee = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            return $employee ? $employee['salary'] : 0;
+        } catch (PDOException $e) {
+            return 0; // In case of error, return 0 salary
         }
     }
 }
