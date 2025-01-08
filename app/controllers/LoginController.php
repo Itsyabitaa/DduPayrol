@@ -43,7 +43,8 @@ class LoginController
             $remainingLockout = time() - $userData['lockout_time'];
             if ($remainingLockout < self::LOCKOUT_TIME) {
                 $waitTime = self::LOCKOUT_TIME - $remainingLockout;
-                echo "Too many failed login attempts. Please wait " . ceil($waitTime / 60) . " minutes before trying again.";
+                $_SESSION['error_message'] = "Too many failed login attempts. Please wait " . ceil($waitTime / 60) . " minutes before trying again.";
+                header('Location: /login');
                 exit;  // Exit, as the user is locked out
             } else {
                 // Reset failed attempts after lockout period
@@ -87,20 +88,28 @@ class LoginController
 
                     if ($userData['failed_attempts'] >= self::MAX_LOGIN_ATTEMPTS) {
                         $userData['lockout_time'] = time(); // Lock the user
-                        echo "Too many failed login attempts. Please wait " . ceil(self::LOCKOUT_TIME / 60) . " minutes.";
+                        $_SESSION['error_message'] = "Too many failed login attempts. Please wait " . ceil(self::LOCKOUT_TIME / 60) . " minutes.";
+                        header('Location: /login');
+                        exit;
                     } else {
                         $remainingAttempts = self::MAX_LOGIN_ATTEMPTS - $userData['failed_attempts'];
-                        echo "Invalid password! You have $remainingAttempts attempt(s) left.";
+                        $_SESSION['error_message'] = "Invalid password! You have $remainingAttempts attempt(s) left.";
+                        header('Location: /login');
+                        exit;
                     }
 
                     // Optionally log failed login attempts
                     $this->logFailedLoginAttempt($username);
                 }
             } else {
-                echo "Invalid username or credentials!";
+                $_SESSION['error_message'] = "Invalid username or credentials!";
+                header('Location: /login');
+                exit;
             }
         } else {
-            echo "Please provide both username and password.";
+            $_SESSION['error_message'] = "Please provide both username and password.";
+            header('Location: /login');
+            exit;
         }
     }
 
@@ -110,6 +119,7 @@ class LoginController
         $logMessage = "Failed login attempt for user: $username at " . date('Y-m-d H:i:s') . "\n";
         file_put_contents('login_attempts.log', $logMessage, FILE_APPEND);
     }
+
     // Redirect user based on role
     public function redirectToDashboard()
     {

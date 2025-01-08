@@ -8,7 +8,6 @@ use App\Core\Database;
 
 class EmployeeController
 {
-    private $employeeModel;
 
     public function index()
     {
@@ -21,6 +20,94 @@ class EmployeeController
         // Pass the data to the view
         include './app/views/employee/addposition.php';
     }
+    public function generatePayslip()
+    {
+        if (!isset($_GET['user_id']) || !isset($_GET['month']) || !isset($_GET['year'])) {
+            echo "User ID, month, and year are required.";
+            return;
+        }
+
+        $user_id = $_GET['user_id'];
+        $month = $_GET['month'];
+        $year = $_GET['year'];
+
+        try {
+            $connection = Database::getConnection();
+
+            // Check if payslip already exists
+            $sql = "SELECT * FROM payslip WHERE user_id = :user_id AND month = :month AND year = :year";
+            $stmt = $connection->prepare($sql);
+            $stmt->execute([
+                ':user_id' => $user_id,
+                ':month' => $month,
+                ':year' => $year,
+            ]);
+
+            if ($stmt->rowCount() > 0) {
+                echo "Payslip for this month already exists.";
+                return;
+            }
+
+            // Get user details
+            $sql = "SELECT salary FROM users WHERE id = :user_id";
+            $stmt = $connection->prepare($sql);
+            $stmt->execute([':user_id' => $user_id]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$user) {
+                echo "User not found.";
+                return;
+            }
+
+            $baseSalary = $user['salary'];
+
+            // Get attendance details
+            $sql = "SELECT days_worked FROM attendance WHERE user_id = :user_id AND month = :month AND year = :year";
+            $stmt = $connection->prepare($sql);
+            $stmt->execute([
+                ':user_id' => $user_id,
+                ':month' => $month,
+                ':year' => $year,
+            ]);
+            $attendance = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$attendance) {
+                echo "Attendance record not found.";
+                return;
+            }
+
+            $daysWorked = $attendance['days_worked'];
+
+            // Assume total working days in the month is 30
+            $totalWorkingDays = 30;
+            $dailySalary = $baseSalary / $totalWorkingDays;
+
+            // Calculate salary components
+            $grossSalary = $dailySalary * $daysWorked;
+            $allowances = 500; // Example fixed allowance
+            $deductions = 200; // Example fixed deduction
+            $netSalary = $grossSalary + $allowances - $deductions;
+
+            // Insert payslip into database
+            $sql = "INSERT INTO payslip (user_id, month, year, gross_salary, net_salary, deductions, allowances) 
+                VALUES (:user_id, :month, :year, :gross_salary, :net_salary, :deductions, :allowances)";
+            $stmt = $connection->prepare($sql);
+            $stmt->execute([
+                ':user_id' => $user_id,
+                ':month' => $month,
+                ':year' => $year,
+                ':gross_salary' => $grossSalary,
+                ':net_salary' => $netSalary,
+                ':deductions' => $deductions,
+                ':allowances' => $allowances,
+            ]);
+
+            echo "Payslip generated successfully.";
+        } catch (\PDOException $e) {
+            echo "Error: " . $e->getMessage();
+        }
+    }
+
 
     // Display payslip
     public function viewPayslip()

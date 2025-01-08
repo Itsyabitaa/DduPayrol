@@ -116,7 +116,6 @@ if (!isset($_SESSION['username']) || !isset($_SESSION['role_id']) || (5 !== ($_S
                 <li><a href="/viewprofile">Edit profile</a></li>
                 <li><a href="/viewpayslip">View Payslip</a></li>
                 <li><a href="/attendance/employees">add Attendance</a></li>
-                <li><a href="/attendance/edit">edit Attendance</a></li>
                 <li><a href="/attendance/view">view Attendance</a></li>
             </ul>
         </aside>

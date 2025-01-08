@@ -1,5 +1,31 @@
 <?php
 include './app/autoloader2.php';
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+// Define the timeout duration (in seconds)
+$timeoutDuration = 900; // 
+
+// Check user activity and logout if inactive
+if (isset($_SESSION['last_activity'])) {
+    $inactiveTime = time() - $_SESSION['last_activity'];
+
+    if ($inactiveTime > $timeoutDuration) {
+        // Destroy session and redirect to login page with timeout flag
+        $_SESSION['message'] = 'Session expired. Please log in again.';
+        session_destroy();
+        session_unset();
+        session_destroy();
+        header('Location: /login?timeout=1');
+        exit;
+    }
+}
+
+// Update last activity timestamp
+$_SESSION['last_activity'] = time();
+
+
 // Define routes for view and dashboard
 $viewRoutes = [
     '/' => [
@@ -77,7 +103,7 @@ $dashboardRoutes = [
         'role_check' => 6,
     ],
     '/viewpayslip' => [
-        'controller' => 'PayslipController',
+        'controller' => 'EmployeeController',
         'method' => 'generatePayslip',
         'role_check' => null,
     ],

@@ -1,17 +1,25 @@
-<!DOCTYPE html>
-<html lang="en">
 <?php
-require_once  'C:\xampp\htdocs\oop_pay\app\core\Router.php';
-if (isset($_SESSION['username']) && isset($_SESSION['role_id'])) {
-    // Redirect to the appropriate dashboard based on role
-    $this->redirectToDashboard();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+// Check if session is expired
+if (isset($_GET['timeout']) && $_GET['timeout'] == 1) {
+    $_SESSION['message'] = 'Session expired. Please log in again.';
+    session_destroy();
+    session_start();
 }
 ?>
+
+<!DOCTYPE html>
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login Page</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -59,12 +67,6 @@ if (isset($_SESSION['username']) && isset($_SESSION['role_id'])) {
         button:hover {
             background: #0056b3;
         }
-
-        .error {
-            color: red;
-            font-size: 0.9em;
-            margin-top: -5px;
-        }
     </style>
 </head>
 
@@ -77,6 +79,20 @@ if (isset($_SESSION['username']) && isset($_SESSION['role_id'])) {
             <button type="submit">Login</button>
         </form>
     </div>
+
+    <script>
+        $(document).ready(function() {
+            // Show toast notification if session is expired
+            <?php if (isset($_SESSION['message'])): ?>
+                toastr.options = {
+                    closeButton: true,
+                    progressBar: true,
+                };
+                toastr.info('<?php echo $_SESSION["message"]; ?>', 'Session Expired');
+                <?php unset($_SESSION['message']); ?>
+            <?php endif; ?>
+        });
+    </script>
 </body>
 
 </html>

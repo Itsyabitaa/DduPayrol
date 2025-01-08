@@ -15,8 +15,9 @@
         }
 
         body {
-            background-color: #f9f9f9;
+            background-color: #f4f6f8;
             color: #333;
+            font-size: 16px;
         }
 
         .dashboard {
@@ -72,6 +73,7 @@
             display: flex;
             flex-direction: column;
             overflow-y: auto;
+            padding: 30px;
         }
 
         .header {
@@ -175,42 +177,43 @@
                 <?php
                 if ($data) {
                     echo "
-                <table class='payslip-table'>
-                    <thead>
-                        <tr>
-                            <th>Employee Name</th>
-                            <th>Salary</th>
-                            <th>Deduction</th>
-                            <th>Pension</th>
-                            <th>Bonus</th>
-                            <th>Addons</th>
-                            <th>Overtime</th>
-                            <th>Allowance</th>
-                            <th>Net Pay</th>
-                            <th>Date</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>{$data['employee_name']}</td>
-                            <td>{$data['salary']}</td>
-                            <td>{$data['deductions']}</td>
-                            <td>{$data['pension']}</td>
-                            <td>{$data['bonus']}</td>
-                            <td>{$data['addons']}</td>
-                            <td>{$data['overtime']}</td>
-                            <td>{$data['allowance']}</td>
-                            <td>{$data['net_pay']}</td>
-                           
-                        </tr>
-                    </tbody>
-                </table>
-                ";
+        <table class='payslip-table'>
+            <thead>
+                <tr>
+                    <th>Employee Name</th>
+                    <th>Salary</th>
+                    <th>Deduction</th>
+                    <th>Pension</th>
+                    <th>Bonus</th>
+                    <th>Addons</th>
+                    <th>Overtime</th>
+                    <th>Allowance</th>
+                    <th>Net Pay</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{$data['employee_name']}</td>
+                    <td>{$data['salary']}</td>
+                    <td>{$data['deductions']}</td>
+                    <td>{$data['pension']}</td>
+                    <td>{$data['bonus']}</td>
+                    <td>{$data['addons']}</td>
+                    <td>{$data['overtime']}</td>
+                    <td>{$data['allowance']}</td>
+                    <td>{$data['net_pay']}</td>
+                    <td>{$data['date']}</td>
+                </tr>
+            </tbody>
+        </table>
+        ";
                 } else {
                     echo "<p class='no-payslip'>No payslip found for this employee.</p>";
                 }
                 ?>
             </div>
+
         </main>
     </div>
 </body>
