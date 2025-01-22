@@ -20,94 +20,165 @@ class EmployeeController
         // Pass the data to the view
         include './app/views/employee/addposition.php';
     }
+
     public function generatePayslip()
     {
-        if (!isset($_GET['user_id']) || !isset($_GET['month']) || !isset($_GET['year'])) {
-            echo "User ID, month, and year are required.";
+
+        // Check if user is logged in
+        if (!isset($_SESSION['user_id'])) {
+            echo "User ID is required.";
             return;
         }
 
-        $user_id = $_GET['user_id'];
-        $month = $_GET['month'];
-        $year = $_GET['year'];
+        $user_id = $_SESSION['user_id'];
 
         try {
+            // Establish database connection
             $connection = Database::getConnection();
 
-            // Check if payslip already exists
-            $sql = "SELECT * FROM payslip WHERE user_id = :user_id AND month = :month AND year = :year";
-            $stmt = $connection->prepare($sql);
-            $stmt->execute([
-                ':user_id' => $user_id,
-                ':month' => $month,
-                ':year' => $year,
-            ]);
-
-            if ($stmt->rowCount() > 0) {
-                echo "Payslip for this month already exists.";
-                return;
-            }
-
-            // Get user details
-            $sql = "SELECT salary FROM users WHERE id = :user_id";
-            $stmt = $connection->prepare($sql);
-            $stmt->execute([':user_id' => $user_id]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            // Fetch active user details
+            $userSql = "SELECT id, salary FROM users WHERE id = :user_id";
+            $userStmt = $connection->prepare($userSql);
+            $userStmt->execute([':user_id' => $user_id]);
+            $user = $userStmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$user) {
-                echo "User not found.";
+                echo "Active user not found.";
                 return;
             }
 
-            $baseSalary = $user['salary'];
+            // Fetch the most recent payslip details
+            $payslipSql = "SELECT 
+                            base_salary, 
+                            penalty, 
+                            pension, 
+                            bonus, 
+                            position_addon, 
+                    
+                           bonus, 
+                            net_pay, 
+                            created_at AS date 
+                       FROM payslips 
+                       WHERE user_id = :user_id 
+                       ORDER BY created_at DESC 
+                       LIMIT 1";
+            $payslipStmt = $connection->prepare($payslipSql);
+            $payslipStmt->execute([':user_id' => $user_id]);
+            $payslip = $payslipStmt->fetch(PDO::FETCH_ASSOC);
 
-            // Get attendance details
-            $sql = "SELECT days_worked FROM attendance WHERE user_id = :user_id AND month = :month AND year = :year";
-            $stmt = $connection->prepare($sql);
-            $stmt->execute([
-                ':user_id' => $user_id,
-                ':month' => $month,
-                ':year' => $year,
-            ]);
-            $attendance = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$payslip) {
+                echo "sorry your payroll is not ready. ";
 
-            if (!$attendance) {
-                echo "Attendance record not found.";
+
                 return;
             }
 
-            $daysWorked = $attendance['days_worked'];
+            // Render the payslip UI
+?>
+            <!DOCTYPE html>
+            <html lang="en">
 
-            // Assume total working days in the month is 30
-            $totalWorkingDays = 30;
-            $dailySalary = $baseSalary / $totalWorkingDays;
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>View Payslip</title>
+                <link rel="stylesheet" href="styles.css">
+                <style>
+                    /* CSS for the UI */
+                    body {
+                        font-family: 'Roboto', sans-serif;
+                        background-color: #f4f6f8;
+                        margin: 0;
+                        padding: 0;
+                    }
 
-            // Calculate salary components
-            $grossSalary = $dailySalary * $daysWorked;
-            $allowances = 500; // Example fixed allowance
-            $deductions = 200; // Example fixed deduction
-            $netSalary = $grossSalary + $allowances - $deductions;
+                    .dashboard {
+                        display: flex;
+                        height: 100vh;
+                    }
 
-            // Insert payslip into database
-            $sql = "INSERT INTO payslip (user_id, month, year, gross_salary, net_salary, deductions, allowances) 
-                VALUES (:user_id, :month, :year, :gross_salary, :net_salary, :deductions, :allowances)";
-            $stmt = $connection->prepare($sql);
-            $stmt->execute([
-                ':user_id' => $user_id,
-                ':month' => $month,
-                ':year' => $year,
-                ':gross_salary' => $grossSalary,
-                ':net_salary' => $netSalary,
-                ':deductions' => $deductions,
-                ':allowances' => $allowances,
-            ]);
+                    .sidebar {
+                        width: 280px;
+                        background: linear-gradient(135deg, #1e5799, #7db9e8);
+                        color: white;
+                        padding: 20px;
+                    }
 
-            echo "Payslip generated successfully.";
-        } catch (\PDOException $e) {
+                    .main-content {
+                        flex: 1;
+                        padding: 20px;
+                        background-color: #f4f6f8;
+                    }
+
+                    .payslip-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        background: white;
+                    }
+
+                    .payslip-table th {
+                        background: #1e5799;
+                        color: white;
+                        padding: 10px;
+                    }
+
+                    .payslip-table td {
+                        padding: 10px;
+                        border: 1px solid #ddd;
+                    }
+                </style>
+            </head>
+
+            <body>
+                <div class="dashboard">
+                    <!-- Sidebar -->
+                    <aside class="sidebar">
+                        <h2>Dashboard</h2>
+                        <ul>
+                            <li><a href="/Director/dashboard">Home</a></li>
+                        </ul>
+                    </aside>
+
+                    <!-- Main Content -->
+                    <main class="main-content">
+                        <h1>Payslip</h1>
+                        <table class="payslip-table">
+                            <thead>
+                                <tr>
+                                    <th>Salary</th>
+                                    <th>Deduction</th>
+                                    <th>Pension</th>
+                                    <th>Bonus</th>
+                                    <th>Addons</th>
+                                    <th>bonus</th>
+                                    <th>Net Pay</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><?= htmlspecialchars($payslip['base_salary']) ?></td>
+                                    <td><?= htmlspecialchars($payslip['penalty']) ?></td>
+                                    <td><?= htmlspecialchars($payslip['pension']) ?></td>
+                                    <td><?= htmlspecialchars($payslip['bonus']) ?></td>
+                                    <td><?= htmlspecialchars($payslip['position_addon']) ?></td>
+                                    <td><?= htmlspecialchars($payslip['bonus']) ?></td>
+                                    <td><?= htmlspecialchars($payslip['net_pay']) ?></td>
+                                    <td><?= htmlspecialchars($payslip['date']) ?></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </main>
+                </div>
+            </body>
+
+            </html>
+<?php
+
+        } catch (PDOException $e) {
             echo "Error: " . $e->getMessage();
         }
     }
-
 
     // Display payslip
     public function viewPayslip()
@@ -117,6 +188,505 @@ class EmployeeController
         // Load the view with the payslip data
         include('./app/views/employee/view_payslip.php');
     }
+    public function preparePayroll()
+    {
+        // Check if the role is allowed (role 1 is for admin/authorized user)
+        if ($_SESSION['role_id'] !== 1) {
+            echo "Unauthorized access.";
+            return;
+        }
+
+        // Handle POST request to process payroll
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $month = $_POST['month'];
+            $year = $_POST['year'];
+            $currentMonth = date('n');
+            $currentYear = date('Y');
+
+            // Validate month/year (current or previous month)
+            if (
+                ($year == $currentYear && $month <= $currentMonth) ||
+                ($year == $currentYear - 1 && $month == 12 && $currentMonth == 1)
+            ) {
+                // Check if payroll has already been created for the given month/year
+                $connection = Database::getConnection();
+                $payrollTrackQuery = "SELECT status FROM payroll_tracks WHERE month = :month AND year = :year";
+                $stmt = $connection->prepare($payrollTrackQuery);
+                $stmt->execute([':month' => $month, ':year' => $year]);
+                $payrollTrack = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($payrollTrack) {
+                    if ($payrollTrack['status'] === 'created') {
+                        echo "Payroll for this month and year has already been prepared.";
+                        return;
+                    } elseif ($payrollTrack['status'] === 'finalized') {
+                        echo "Payroll for this month and year has already been finalized and cannot be modified.";
+                        return;
+                    }
+                } else {
+                    // If no record exists, create a new payroll track with status 'created'
+                    $insertTrackQuery = "INSERT INTO payroll_tracks (month, year, status) VALUES (:month, :year, 'created')";
+                    $stmt = $connection->prepare($insertTrackQuery);
+                    $stmt->execute([':month' => $month, ':year' => $year]);
+                }
+
+                // Fetch data from the database for payroll processing
+                $usersQuery = "SELECT id, first_name, salary, position_id FROM users";
+                $users = $connection->query($usersQuery)->fetchAll(PDO::FETCH_ASSOC);
+
+                // Initialize data for payroll processing
+                foreach ($users as &$user) {
+                    $attendanceQuery = "SELECT days_worked FROM attendance WHERE user_id = :user_id AND month = :month AND year = :year";
+                    $stmt = $connection->prepare($attendanceQuery);
+                    $stmt->execute([':user_id' => $user['id'], ':month' => $month, ':year' => $year]);
+
+                    $attendance = $stmt->fetch(PDO::FETCH_ASSOC);
+                    $user['attendance_days'] = $attendance ? $attendance['days_worked'] : 0;
+
+                    // Fetch the position-based addon salary
+                    switch ($user['position_id']) {
+                        case 1:
+                            $user['position_addon'] = 3500;
+                            break;
+                        case 2:
+                            $user['position_addon'] = 4000;
+                            break;
+                        case 3:
+                            $user['position_addon'] = 2500;
+                            break;
+                        case 4:
+                            $user['position_addon'] = 0;
+                            break;
+                        default:
+                            $user['position_addon'] = 0;
+                            break;
+                    }
+
+                    // Default values for pension, penalty, and bonus
+                    $user['pension'] = 0;
+                    $user['penalty'] = 0;
+                    $user['bonus'] = 0;
+                }
+
+                // Pass data to the view
+                include './app/views/payroll/payroll_prepare.php';
+            } else {
+                echo "Invalid month/year. Only the current or previous month is allowed.";
+            }
+        } else {
+            // If the request method is GET, display the form for selecting month and year
+            include './app/views/payroll/payroll_prepare_form.php';
+        }
+    }
+    public function updatePayroll()
+    {
+        // Check if the role is allowed (role 1 is for admin/authorized user)
+        if ($_SESSION['role_id'] !== 1) {
+            echo "Unauthorized access.";
+            return;
+        }
+
+        // Handle POST request to update payroll
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $month = $_POST['month'];
+            $year = $_POST['year'];
+
+            // Iterate over the payroll records that need to be updated
+            foreach ($_POST['payroll'] as $userId => $payrollData) {
+                // Retrieve the updated data from the form
+                $baseSalary = $payrollData['base_salary'];
+                $positionAddon = $payrollData['position_addon'];
+                $attendanceDays = $payrollData['attendance_days'];
+                $pension = $payrollData['pension'];
+                $penalty = $payrollData['penalty'];
+                $bonus = $payrollData['bonus'];
+                $netPay = $payrollData['net_pay'];
+
+                // Update the payroll in the database
+                $connection = Database::getConnection();
+
+                $updateQuery = "
+                UPDATE payroll_preparations 
+                SET 
+                    base_salary = :base_salary,
+                    position_addon = :position_addon,
+                    attendance_days = :attendance_days,
+                    pension = :pension,
+                    penalty = :penalty,
+                    bonus = :bonus,
+                    net_pay = :net_pay
+                WHERE 
+                    user_id = :user_id AND month = :month AND year = :year
+            ";
+
+                $stmt = $connection->prepare($updateQuery);
+                $stmt->execute([
+                    ':base_salary' => $baseSalary,
+                    ':position_addon' => $positionAddon,
+                    ':attendance_days' => $attendanceDays,
+                    ':pension' => $pension,
+                    ':penalty' => $penalty,
+                    ':bonus' => $bonus,
+                    ':net_pay' => $netPay,
+                    ':user_id' => $userId,
+                    ':month' => $month,
+                    ':year' => $year
+                ]);
+            }
+
+            // Redirect to a confirmation page or back to the payroll list
+            header('Location: /payroll/list'); // Adjust to the appropriate route
+            exit;
+        }
+    }
+
+    public function payrolledit()
+    {
+        // Check if the role is allowed (role 1 is for admin/authorized user)
+        if ($_SESSION['role_id'] !== 1) {
+            echo "Unauthorized access.";
+            return;
+        }
+
+        // Handle POST request to fetch and edit payroll
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Get selected month and year from the form
+            $month = $_POST['month'];
+            $year = $_POST['year'];
+
+            // Check if the month and year are valid (you can add more validation here)
+            if (!in_array($month, range(1, 12))) {
+                echo "Invalid month.";
+                return;
+            }
+
+            if ($year < 2025 || $year > date('Y')) {
+                echo "Invalid year.";
+                return;
+            }
+
+            // Connect to the database and fetch payroll data for the selected month and year
+            $connection = Database::getConnection();
+
+            $payrollQuery = "
+            SELECT 
+                pp.user_id AS id, 
+                u.first_name, 
+                pp.base_salary, 
+                pp.position_addon, 
+                pp.attendance_days, 
+                pp.pension, 
+                pp.penalty, 
+                pp.bonus, 
+                pp.net_pay 
+            FROM payroll_preparations pp
+            JOIN users u ON pp.user_id = u.id
+            WHERE pp.month = :month AND pp.year = :year
+        ";
+
+            $stmt = $connection->prepare($payrollQuery);
+            $stmt->execute([':month' => $month, ':year' => $year]);
+
+            $payrollRecords = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (empty($payrollRecords)) {
+                echo "No payroll records found for the selected month and year.";
+                return;
+            }
+
+            // Pass payroll records to the view
+            include './app/views/payroll/payroll_edit.php';
+        }
+    }
+
+
+    private function savePayrollUpdates()
+    {
+        // Validate role
+        if ($_SESSION['role_id'] !== 1) {
+            http_response_code(403); // Forbidden
+            echo "Access denied.";
+            exit();
+        }
+
+        // Connect to the database
+        $conn = new mysqli('localhost', 'root', '', 'ooppayrol');
+        if ($conn->connect_error) {
+            die('Connection failed: ' . $conn->connect_error);
+        }
+
+        // Update payroll data
+        foreach ($_POST['penalty'] as $userId => $penalty) {
+            $bonus = $_POST['bonus'][$userId];
+
+            $stmt = $conn->prepare("
+                UPDATE payroll_preparations 
+                SET penalty = ?, bonus = ? 
+                WHERE user_id = ? AND month = ? AND year = ?
+            ");
+            $stmt->bind_param("ddiii", $penalty, $bonus, $userId, $_POST['month'], $_POST['year']);
+            $stmt->execute();
+            $stmt->close();
+        }
+
+        $conn->close();
+
+        // Redirect back to the payroll page
+        header("Location: /payroll/edit?month=" . $_POST['month'] . "&year=" . $_POST['year']);
+        exit();
+    }
+
+    // Show the payroll editing form
+    private function showPayrollForm()
+    {
+        $month = $_POST['month'] ?? date('m');
+        $year = $_POST['year'] ?? date('Y');
+
+        // Fetch payroll data for the given month/year
+        $connection = Database::getConnection();
+        $query = "
+            SELECT * FROM payroll_preparations 
+            WHERE month = :month AND year = :year
+        ";
+        $stmt = $connection->prepare($query);
+        $stmt->execute([':month' => $month, ':year' => $year]);
+        $payrollData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Include the view to show the payroll editing form
+        include 'views/payroll_edit_form.php';
+    }
+
+
+
+
+    public function saveTemporary()
+    {
+        // Check if the role is allowed
+        if ($_SESSION['role_id'] !== 1) {
+            echo "Unauthorized access.";
+            return;
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $month = $_POST['month'];
+            $year = $_POST['year'];
+
+            // Database connection
+            $connection = Database::getConnection();
+
+            // Loop through each user to update pension, penalty, bonus, and net pay
+            foreach ($_POST['penalty'] as $userId => $penalty) {
+                $bonus = $_POST['bonus'][$userId];
+
+                // Fetch user details from the database
+                $userQuery = "SELECT salary, position_id FROM users WHERE id = :user_id";
+                $stmt = $connection->prepare($userQuery);
+                $stmt->execute([':user_id' => $userId]);
+                $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                // Fetch attendance days for the user in the specified month and year
+                $attendanceQuery = "SELECT days_worked FROM attendance WHERE user_id = :user_id AND month = :month AND year = :year";
+                $stmt = $connection->prepare($attendanceQuery);
+                $stmt->execute([':user_id' => $userId, ':month' => $month, ':year' => $year]);
+                $attendance = $stmt->fetch(PDO::FETCH_ASSOC);
+                $attendanceDays = $attendance ? $attendance['days_worked'] : 0;
+
+                // Determine position addon based on position_id
+                switch ($user['position_id']) {
+                    case 1:
+                        $addon = 3500;
+                        break;
+                    case 2:
+                        $addon = 4000;
+                        break;
+                    case 3:
+                        $addon = 2500;
+                        break;
+                    case 4:
+                        $addon = 0;
+                        break;
+                    default:
+                        $addon = 0;
+                        break;
+                }
+
+                // Calculate pension as 15% of the base salary
+                $pension = $user['salary'] * 0.15;
+
+                // Net pay calculation
+                $netPay = ($user['salary'] + $addon) * $attendanceDays - $penalty + $bonus - $pension;
+
+                // Insert payroll data into payroll_preparation table
+                $insertQuery = "INSERT INTO payroll_preparations 
+                (user_id, month, year, base_salary, position_addon, attendance_days, pension, penalty, bonus, net_pay) 
+                VALUES 
+                (:user_id, :month, :year, :base_salary, :position_addon, :attendance_days, :pension, :penalty, :bonus, :net_pay)";
+
+                $stmt = $connection->prepare($insertQuery);
+                $stmt->execute([
+                    ':user_id' => $userId,
+                    ':month' => $month,
+                    ':year' => $year,
+                    ':base_salary' => $user['salary'],
+                    ':position_addon' => $addon,
+                    ':attendance_days' => $attendanceDays,
+                    ':pension' => $pension,
+                    ':penalty' => $penalty,
+                    ':bonus' => $bonus,
+                    ':net_pay' => $netPay
+                ]);
+            }
+
+            echo "Payroll data saved successfully!";
+        }
+    }
+    public function finalizePayroll()
+    {
+        if ($_SESSION['role_id'] !== 1) { // Role 1: HR Manager
+            echo "Unauthorized access.";
+            return;
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $month = $_POST['month'];
+            $year = $_POST['year'];
+
+            $connection = Database::getConnection();
+
+            // Check payroll status
+            $payrollTrackQuery = "SELECT status FROM payroll_tracks WHERE month = :month AND year = :year";
+            $stmt = $connection->prepare($payrollTrackQuery);
+            $stmt->execute([':month' => $month, ':year' => $year]);
+            $payrollTrack = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$payrollTrack) {
+                echo "No payroll available for finalization for this month and year.";
+                return;
+            }
+
+            if ($payrollTrack['status'] === 'finalized') {
+                echo "Payroll for this month and year has already been finalized.";
+                return;
+            }
+
+            if ($payrollTrack['status'] === 'created') {
+                // Fetch data from preparation table
+                $prepareQuery = "
+                SELECT p.user_id, u.first_name, p.base_salary, p.position_addon, 
+                       p.pension, p.penalty, p.bonus, p.net_pay 
+                FROM payroll_preparations p
+                INNER JOIN users u ON p.user_id = u.id
+                WHERE p.month = :month AND p.year = :year
+            ";
+                $stmt = $connection->prepare($prepareQuery);
+                $stmt->execute([':month' => $month, ':year' => $year]);
+                $payrollDetails = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                if (!$payrollDetails) {
+                    echo "No payroll preparation data found for this month and year.";
+                    return;
+                }
+
+                // Display the payroll details for review
+                include './app/views/payroll/payroll_finalize_review.php';
+                return;
+            }
+        } else {
+            // Display form to select month and year
+            include './app/views/payroll/payroll_finalize_form.php';
+        }
+    }
+
+    public function confirmFinalizePayroll()
+    {
+        if ($_SESSION['role_id'] !== 1) { // Role 2: HR Manager
+            echo "Unauthorized access.";
+            return;
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $month = $_POST['month'];
+            $year = $_POST['year'];
+
+            // Connect to the database
+            $connection = Database::getConnection();
+
+            try {
+                // Begin transaction
+                $connection->beginTransaction();
+
+                // Fetch data from payroll_preparations table
+                $fetchQuery = "
+                SELECT user_id, base_salary, position_addon, attendance_days, 
+                       pension, penalty, bonus, net_pay
+                FROM payroll_preparations
+                WHERE month = :month AND year = :year
+            ";
+                $stmt = $connection->prepare($fetchQuery);
+                $stmt->execute([':month' => $month, ':year' => $year]);
+                $payrollData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                if (empty($payrollData)) {
+                    echo "No payroll data found for finalization for $month/$year.";
+                    $connection->rollBack();
+                    return;
+                }
+
+                // Insert data into payslips table
+                $insertQuery = "
+                INSERT INTO payslips (user_id, month, year, base_salary, position_addon, 
+                                      attendance_days, pension, penalty, bonus, net_pay)
+                VALUES (:user_id, :month, :year, :base_salary, :position_addon, 
+                        :attendance_days, :pension, :penalty, :bonus, :net_pay)
+            ";
+                $insertStmt = $connection->prepare($insertQuery);
+
+                foreach ($payrollData as $row) {
+                    $insertStmt->execute([
+                        ':user_id' => $row['user_id'],
+                        ':month' => $month,
+                        ':year' => $year,
+                        ':base_salary' => $row['base_salary'],
+                        ':position_addon' => $row['position_addon'],
+                        ':attendance_days' => $row['attendance_days'],
+                        ':pension' => $row['pension'],
+                        ':penalty' => $row['penalty'],
+                        ':bonus' => $row['bonus'],
+                        ':net_pay' => $row['net_pay'],
+                    ]);
+                }
+
+                // Delete data from payroll_preparations table
+                $deleteQuery = "
+                DELETE FROM payroll_preparations
+                WHERE month = :month AND year = :year
+            ";
+                $deleteStmt = $connection->prepare($deleteQuery);
+                $deleteStmt->execute([':month' => $month, ':year' => $year]);
+
+                // Update payroll_tracks table to set status to 'finalized'
+                $finalizeQuery = "
+                UPDATE payroll_tracks 
+                SET status = 'finalized' 
+                WHERE month = :month AND year = :year
+            ";
+                $finalizeStmt = $connection->prepare($finalizeQuery);
+                $finalizeStmt->execute([':month' => $month, ':year' => $year]);
+
+                // Commit transaction
+                $connection->commit();
+
+                echo "Payroll for $month/$year has been successfully finalized.";
+            } catch (Exception $e) {
+                // Rollback on error
+                $connection->rollBack();
+                echo "Error finalizing payroll: " . $e->getMessage();
+            }
+        } else {
+            echo "Invalid request method.";
+        }
+    }
+
     public function Addemployee()
     {
 
@@ -513,11 +1083,6 @@ class EmployeeController
         include 'app/views/attendance/attendance.php';
     }
 
-    public function editpayroll()
-    {
-
-        include 'app/views/PA/EDITPAY.php';
-    }
     public function loadAttendanceAdd()
     {
         include 'app/views/attendance/attendanceAdd.php';

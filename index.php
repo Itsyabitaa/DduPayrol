@@ -122,6 +122,37 @@ $dashboardRoutes = [
         'method' => 'index',
         'role_check' => 4,
     ],
+    '/payroll/prepare' => [
+        'controller' => 'EmployeeController',
+        'method' => 'preparePayroll',
+        'role_check' => '1', // Ensure only payroll analysts can access this route
+    ],
+    '/payroll/save-temporary' => [
+        'controller' => 'EmployeeController',
+        'method' => 'saveTemporary',
+        'role_check' => 1, // Ensure only payroll analysts can access
+    ],
+    '/payroll/finalize' => [
+        'controller' => 'EmployeeController',
+        'method' => 'finalizePayroll',
+        'role_check' => 1, // Ensure only payroll analysts can access
+    ],
+    '/payroll/edit' => [
+        'controller' => 'EmployeeController',
+        'method' => 'payrolledit',
+        'role_check' => 1, // Ensure only payroll analysts can access
+    ],
+    '/payroll/update' => [
+        'controller' => 'EmployeeController',
+        'method' => 'updatePayroll',
+        'role_check' => 1, // Ensure only payroll analysts can access
+    ],
+    '/payroll/confirm-finalize' => [
+        'controller' => 'EmployeeController',
+        'method' => 'confirmFinalizePayroll',
+        'role_check' => 1, // Ensure only payroll analysts can access
+    ],
+
     '/Add_employee' => [
         'controller' => 'EmployeeController',
         'method' => 'Addemployee',
